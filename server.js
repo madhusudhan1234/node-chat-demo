@@ -18,22 +18,34 @@ app.use(express.static(__dirname))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
+mongoose.Promise = Promise
+
 app.get('/messages', (req, res) => {
     Message.find({}, (err, messages) => {
         res.send(messages)
     })
 })
 
-app.post('/messages', (req, res) => {
+app.post('/messages', async (req, res) => {
     var message = new Message(req.body)
-    message.save((err) => {
-        if (err) 
-            sendStatus(500)
-        
+    var savedMessage = await message.save()
+    console.log('saved')
+    
+    var censored = await Message.findOne({ message: 'badword'})
+    if (censored) {
+        await Message.remove({_id: censored.id})
+    } else {
         io.emit('message', req.body)
-        res.sendStatus(200)
-    })
+    }
+
+    res.sendStatus(200)
+
+    // .catch((err) => {
+    //     res.sendStatus(500)
+    //     return console.error(err)
+    // })
 })
+
 
 io.on('connection', (socket) => {
     console.log('a user connected')
